@@ -36,9 +36,13 @@ Pcap.prototype.open = function (live, device, filter, buffer_size, pcap_output_f
 
     // called for each packet read by pcap
     function packet_ready(header) {
+        // console.log("header.linktype "+me.link_type);
+        // console.log("header.time_ms "+me.time_ms);
         header.link_type = me.link_type;
         header.time_ms = (header.tv_sec * 1000) + (header.tv_usec / 1000);
         me.buf.pcap_header = header;
+        // console.log(me);
+        // console.log(header);
         me.emit('packet', me.buf);
     }
 
@@ -123,6 +127,14 @@ function dump_bytes(raw_packet, offset) {
 }
 
 var unpack = {
+    can_len: function (raw_packet, offset) {
+      return raw_packet[offset];
+    },
+    can_id: function (raw_packet, offset) {
+    },
+    can_data: function (raw_packet, offset) {
+      return 
+    },
     ethernet_addr: function (raw_packet, offset) {
         return [
             lpad(raw_packet[offset].toString(16), 2),
@@ -315,9 +327,7 @@ decode.ethernet = function (raw_packet, offset) {
             console.log("pcap.js: decode.ethernet() - Don't know how to decode ethertype " + ret.ethertype);
         }
     }
-
-
-
+    
     return ret;
 };
 
@@ -348,6 +358,9 @@ decode.linux_sll = function (raw_packet, offset) {
     case 0x88cc: // LLDP - http://en.wikipedia.org/wiki/Link_Layer_Discovery_Protocol
         ret.lldp = "need to implement LLDP";
         break;
+    case 0x000c: // CAN 
+        ret.can = decode.can(raw_packet, offset);;
+        break;
     default:
         console.log("pcap.js: decode.linux_sll() - Don't know how to decode ethertype " + ret.sllProtocol);
     }
@@ -355,6 +368,30 @@ decode.linux_sll = function (raw_packet, offset) {
     return ret;
 };
 
+decode.can = function (raw_packet, offset) {
+   var ret = {};
+   var original_offset = offset;
+   // ret.raw=raw_packet;
+   ret.id = unpack.uint16_be(raw_packet, offset); offset += 2;
+   var empty;
+   empty = unpack.uint16_be(raw_packet, offset); offset += 2;
+   if (empty!=0) {
+        console.log("pcap.js: can - should be zero");
+   }
+   ret.idHex= ret.id.toString(16);
+   ret.len = unpack.can_len(raw_packet, offset); offset += 2;
+   empty = unpack.uint16_be(raw_packet, offset); offset += 2;
+   if (empty!=0) {
+        console.log("pcap.js: can - should be zero");
+   }
+   if (ret.len!=8) {
+        console.log("pcap.js: can length- Only know how to decode 8 bit length");
+   }
+   ret.data=new Buffer(8);
+   // ret.offset=offset;
+   raw_packet.copy (ret.data,0,offset,offset+8);
+   return ret;
+}
 
 decode.ieee802_11_radio = function (raw_packet, offset) {
     var ret = {};
@@ -1205,6 +1242,7 @@ print.arp = function (packet) {
 print.slltype = function (packet) {
     var ret = "";
 
+    console.log("ethertype "+packet.ling.ethertype); 
     switch (packet.link.ethertype) {
     case 0x0:
         ret += " 802.3 type ";
@@ -1278,6 +1316,7 @@ print.nulltype = function (packet) {
 
 print.packet = function (packet_to_print) {
     var ret = "";
+    console.log("link_type "+packet_to_print.link_type);
     switch (packet_to_print.link_type) {
     case "LINKTYPE_ETHERNET":
         ret += print.ethernet(packet_to_print);
