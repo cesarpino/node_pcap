@@ -104,6 +104,13 @@ exports.createSession = function (device, filter, buffer_size, monitor) {
     return session;
 };
 
+// para crear sesion con fichero de log
+exports.createLoggedSession = function (device, filename, filter, buffer_size, monitor) {
+    var session = new Pcap();
+    session.open(true, device, filter, buffer_size, filename, monitor);
+    return session;
+};
+
 exports.createOfflineSession = function (path, filter) {
     var session = new Pcap();
     session.open(false, path, filter, 0);
@@ -376,13 +383,13 @@ decode.can = function (raw_packet, offset) {
    var empty;
    empty = unpack.uint16_be(raw_packet, offset); offset += 2;
    if (empty!=0) {
-        console.log("pcap.js: can - should be zero");
+        // console.log("pcap.js: can - should be zero");
    }
    ret.idHex= ret.id.toString(16);
    ret.len = unpack.can_len(raw_packet, offset); offset += 2;
    empty = unpack.uint16_be(raw_packet, offset); offset += 2;
    if (empty!=0) {
-        console.log("pcap.js: can - should be zero");
+        // console.log("pcap.js: can - should be zero");
    }
    if (ret.len!=8) {
         console.log("pcap.js: can length- Only know how to decode 8 bit length");
